@@ -11,13 +11,20 @@ class OrganizationMemberInline(admin.TabularInline):
     autocomplete_fields = ('user',)
     fields = ('user', 'role', 'is_active', 'permissions')
 
+    def get_queryset(self, request):
+        return self.model.all_objects.get_queryset()
+
 
 @admin.register(Organization)
 class OrganizationAdmin(admin.ModelAdmin):
-    list_display = ('name', 'slug', 'contact_email', 'created_at')
+    list_display = ('name', 'slug', 'contact_email', 'is_active', 'deactivated_at', 'created_at')
+    list_filter = ('is_active',)
     search_fields = ('name', 'slug', 'contact_email')
     prepopulated_fields = {'slug': ('name',)}
     inlines = [OrganizationMemberInline]
+
+    def get_queryset(self, request):
+        return self.model.all_objects.get_queryset()
 
 
 @admin.register(OrganizationMember)
@@ -30,3 +37,6 @@ class OrganizationMemberAdmin(admin.ModelAdmin):
         'user__email',
     )
     autocomplete_fields = ('organization', 'user')
+
+    def get_queryset(self, request):
+        return self.model.all_objects.get_queryset()

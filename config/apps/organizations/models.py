@@ -1,6 +1,9 @@
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models
+from django.utils import timezone
+
+from .managers import OrganizationManager, OrganizationMemberManager
 
 # Create your models here.
 
@@ -10,8 +13,35 @@ class Organization(models.Model):
     slug = models.SlugField(max_length=200, unique=True)
     contact_email = models.EmailField()
 
+    is_active = models.BooleanField(default=True)
+    deactivated_at = models.DateTimeField(null=True, blank=True)
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    objects = OrganizationManager()
+    all_objects = OrganizationManager(active_only=False)
+
+    class Meta:
+        base_manager_name = 'all_objects'
+        default_manager_name = 'objects'
+        indexes = [
+            models.Index(fields=['is_active']),
+        ]
+
+    def deactivate(self, using=None):
+        if not self.is_active:
+            return
+        self.is_active = False
+        self.deactivated_at = timezone.now()
+        self.save(using=using, update_fields=['is_active', 'deactivated_at'])
+
+    def activate(self, using=None):
+        if self.is_active:
+            return
+        self.is_active = True
+        self.deactivated_at = None
+        self.save(using=using, update_fields=['is_active', 'deactivated_at'])
 
     def __str__(self) -> str:
         return self.name
@@ -52,6 +82,9 @@ class OrganizationMember(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    objects = OrganizationMemberManager()
+    all_objects = OrganizationMemberManager(active_only=False)
+
     class Meta:
         constraints = [
             models.UniqueConstraint(
@@ -61,6 +94,7 @@ class OrganizationMember(models.Model):
         ]
         indexes = [
             models.Index(fields=['organization', 'role']),
+            models.Index(fields=['organization', 'is_active']),
         ]
 
     @classmethod
@@ -108,7 +142,7 @@ class OrganizationMember(models.Model):
         return role_perms | extra_perms
 
     def can(self, permission: str) -> bool:
-        if not self.is_active:
+        if not self.is_active or not self.organization.is_active:
             return False
         return permission in self.effective_permissions
 
