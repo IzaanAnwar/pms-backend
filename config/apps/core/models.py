@@ -2,11 +2,13 @@ from django.db import models
 from django.utils import timezone
 
 from .managers import SoftDeleteManager
+from .ids import generate_cuid
 
 # Create your models here.
 
 
 class SoftDeleteModel(models.Model):
+    id = models.CharField(primary_key=True, max_length=24, default=generate_cuid, editable=False)
     deleted_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
