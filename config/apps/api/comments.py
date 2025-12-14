@@ -1,7 +1,10 @@
+from django.core.exceptions import ValidationError
 from graphql import GraphQLError
 import graphene
 
 from apps.organizations.models import OrganizationMember
+from apps.tasks import selectors as task_selectors
+from apps.tasks import services as task_services
 from apps.tasks.models import Task, TaskComment
 
 from .common import require_org_permission
@@ -13,19 +16,13 @@ class CommentsQuery(graphene.ObjectType):
     task_comment = graphene.Field(TaskCommentType, id=graphene.ID(required=True))
 
     def resolve_task_comments(self, info, task_id: str):
-        org, membership = require_org_permission(info, OrganizationMember.Permission.TASKS_READ)
-        return TaskComment.objects.select_related('task', 'author').filter(
-            task_id=task_id,
-            task__project__organization=org,
-        )
+        org, _membership = require_org_permission(info, OrganizationMember.Permission.TASKS_READ)
+        return task_selectors.list_task_comments(organization=org, task_id=task_id)
 
     def resolve_task_comment(self, info, id: str):
-        org, membership = require_org_permission(info, OrganizationMember.Permission.TASKS_READ)
         try:
-            return TaskComment.objects.select_related('task', 'author').get(
-                id=id,
-                task__project__organization=org,
-            )
+            org, _membership = require_org_permission(info, OrganizationMember.Permission.TASKS_READ)
+            return task_selectors.get_task_comment(organization=org, comment_id=id)
         except TaskComment.DoesNotExist as exc:
             raise GraphQLError('Comment not found') from exc
 
@@ -39,22 +36,20 @@ class CreateTaskComment(graphene.Mutation):
 
     @classmethod
     def mutate(cls, root, info, task_id: str, content: str):
-        org, membership = require_org_permission(info, OrganizationMember.Permission.TASKS_WRITE)
-
-        content_value = content.strip()
-        if not content_value:
-            raise GraphQLError('Comment content is required')
-
         try:
-            task = Task.objects.select_related('project').get(id=task_id, project__organization=org)
+            org, _membership = require_org_permission(info, OrganizationMember.Permission.TASKS_WRITE)
+            comment = task_services.create_task_comment(
+                organization=org,
+                task_id=task_id,
+                author=info.context.user,
+                content=content,
+            )
         except Task.DoesNotExist as exc:
             raise GraphQLError('Task not found') from exc
 
-        comment = TaskComment.objects.create(
-            task=task,
-            author=info.context.user,
-            content=content_value,
-        )
+        except ValidationError as exc:
+            raise GraphQLError(' '.join(exc.messages)) from exc
+
         return CreateTaskComment(comment=comment)
 
 
@@ -67,22 +62,19 @@ class UpdateTaskComment(graphene.Mutation):
 
     @classmethod
     def mutate(cls, root, info, id: str, content: str):
-        org, membership = require_org_permission(info, OrganizationMember.Permission.TASKS_WRITE)
-
-        content_value = content.strip()
-        if not content_value:
-            raise GraphQLError('Comment content is required')
-
         try:
-            comment = TaskComment.objects.select_related('task', 'author').get(
-                id=id,
-                task__project__organization=org,
+            org, _membership = require_org_permission(info, OrganizationMember.Permission.TASKS_WRITE)
+            comment = task_services.update_task_comment(
+                organization=org,
+                comment_id=id,
+                content=content,
             )
         except TaskComment.DoesNotExist as exc:
             raise GraphQLError('Comment not found') from exc
 
-        comment.content = content_value
-        comment.save(update_fields=['content'])
+        except ValidationError as exc:
+            raise GraphQLError(' '.join(exc.messages)) from exc
+
         return UpdateTaskComment(comment=comment)
 
 
@@ -94,14 +86,11 @@ class DeleteTaskComment(graphene.Mutation):
 
     @classmethod
     def mutate(cls, root, info, id: str):
-        org, membership = require_org_permission(info, OrganizationMember.Permission.TASKS_WRITE)
-
         try:
-            comment = TaskComment.objects.get(id=id, task__project__organization=org)
+            org, _membership = require_org_permission(info, OrganizationMember.Permission.TASKS_WRITE)
+            task_services.delete_task_comment(organization=org, comment_id=id)
         except TaskComment.DoesNotExist as exc:
             raise GraphQLError('Comment not found') from exc
-
-        comment.delete()
         return DeleteTaskComment(ok=True)
 
 

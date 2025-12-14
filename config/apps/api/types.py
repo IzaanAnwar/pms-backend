@@ -27,7 +27,7 @@ class OrganizationMemberType(DjangoObjectType):
 class ProjectType(DjangoObjectType):
     class Meta:
         model = Project
-        fields = ('id', 'name', 'description', 'status', 'due_date', 'created_at', 'updated_at')
+        fields = ('id', 'name', 'description', 'created_at', 'updated_at')
 
 
 class TaskType(DjangoObjectType):

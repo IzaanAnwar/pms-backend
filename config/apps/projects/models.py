@@ -9,11 +9,6 @@ from .managers import ProjectManager
 
 
 class Project(SoftDeleteModel):
-    class Status(models.TextChoices):
-        ACTIVE = 'active', 'Active'
-        COMPLETED = 'completed', 'Completed'
-        ARCHIVED = 'archived', 'Archived'
-
     organization = models.ForeignKey(
         Organization,
         on_delete=models.PROTECT,
@@ -22,8 +17,6 @@ class Project(SoftDeleteModel):
 
     name = models.CharField(max_length=200)
     description = models.TextField(blank=True)
-    status = models.CharField(max_length=20, choices=Status.choices, default=Status.ACTIVE)
-    due_date = models.DateField(null=True, blank=True)
 
     objects = ProjectManager()
     all_objects = ProjectManager(alive_only=False, active_org_only=False)
@@ -32,8 +25,7 @@ class Project(SoftDeleteModel):
         base_manager_name = 'all_objects'
         default_manager_name = 'objects'
         indexes = [
-            models.Index(fields=['organization', 'status']),
-            models.Index(fields=['organization', 'due_date']),
+            models.Index(fields=['organization'], name='projects_project_org_idx'),
         ]
 
     def __str__(self) -> str:

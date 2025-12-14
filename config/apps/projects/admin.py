@@ -7,8 +7,8 @@ from .models import Project
 
 @admin.register(Project)
 class ProjectAdmin(admin.ModelAdmin):
-    list_display = ('name', 'organization', 'status', 'due_date', 'deleted_at', 'created_at')
-    list_filter = ('status', 'organization')
+    list_display = ('name', 'organization', 'deleted_at', 'created_at')
+    list_filter = ('organization',)
     search_fields = ('name', 'description', 'organization__name', 'organization__slug')
     autocomplete_fields = ('organization',)
     ordering = ('-created_at',)

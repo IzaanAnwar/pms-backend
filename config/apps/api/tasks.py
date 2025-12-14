@@ -1,11 +1,14 @@
+from django.core.exceptions import ValidationError
 from graphql import GraphQLError
 import graphene
 
 from apps.organizations.models import OrganizationMember
 from apps.projects.models import Project
+from apps.tasks import selectors as task_selectors
+from apps.tasks import services as task_services
 from apps.tasks.models import Task
 
-from .common import get_active_organization, require_org_permission
+from .common import require_org_permission
 from .types import TaskType
 
 
@@ -14,17 +17,13 @@ class TasksQuery(graphene.ObjectType):
     task = graphene.Field(TaskType, id=graphene.ID(required=True))
 
     def resolve_tasks(self, info, project_id: str | None = None):
-        org, membership = require_org_permission(info, OrganizationMember.Permission.TASKS_READ)
-
-        qs = Task.objects.select_related('project').filter(project__organization=org)
-        if project_id:
-            qs = qs.filter(project_id=project_id)
-        return qs.order_by('-created_at')
+        org, _membership = require_org_permission(info, OrganizationMember.Permission.TASKS_READ)
+        return task_selectors.list_tasks(organization=org, project_id=project_id)
 
     def resolve_task(self, info, id: str):
-        org, membership = require_org_permission(info, OrganizationMember.Permission.TASKS_READ)
+        org, _membership = require_org_permission(info, OrganizationMember.Permission.TASKS_READ)
         try:
-            return Task.objects.select_related('project').get(id=id, project__organization=org)
+            return task_selectors.get_task(organization=org, task_id=id)
         except Task.DoesNotExist as exc:
             raise GraphQLError('Task not found') from exc
 
@@ -50,28 +49,22 @@ class CreateTask(graphene.Mutation):
         status: str | None = None,
         assignee_email: str | None = None,
     ):
-        org, membership = require_org_permission(info, OrganizationMember.Permission.TASKS_WRITE)
-
-        title_value = title.strip()
-        if not title_value:
-            raise GraphQLError('Task title is required')
-
         try:
-            project = Project.objects.get(id=project_id, organization=org)
+            org, _membership = require_org_permission(info, OrganizationMember.Permission.TASKS_WRITE)
+            task = task_services.create_task(
+                organization=org,
+                project_id=project_id,
+                title=title,
+                description=description,
+                status=status,
+                assignee_email=assignee_email,
+            )
         except Project.DoesNotExist as exc:
             raise GraphQLError('Project not found') from exc
 
-        status_value = status or Task.Status.TODO
-        if status_value not in Task.Status.values:
-            raise GraphQLError('Invalid task status')
+        except ValidationError as exc:
+            raise GraphQLError(' '.join(exc.messages)) from exc
 
-        task = Task.objects.create(
-            project=project,
-            title=title_value,
-            description=(description or '').strip(),
-            status=status_value,
-            assignee_email=(assignee_email or '').strip(),
-        )
         return CreateTask(task=task)
 
 
@@ -98,46 +91,25 @@ class UpdateTask(graphene.Mutation):
         status: str | None = None,
         assignee_email: str | None = None,
     ):
-        org, membership = require_org_permission(info, OrganizationMember.Permission.TASKS_WRITE)
-
         try:
-            task = Task.objects.select_related('project').get(id=id, project__organization=org)
+            org, _membership = require_org_permission(info, OrganizationMember.Permission.TASKS_WRITE)
+            task = task_services.update_task(
+                organization=org,
+                task_id=id,
+                project_id=project_id,
+                title=title,
+                description=description,
+                status=status,
+                assignee_email=assignee_email,
+            )
         except Task.DoesNotExist as exc:
             raise GraphQLError('Task not found') from exc
 
-        update_fields: list[str] = []
+        except Project.DoesNotExist as exc:
+            raise GraphQLError('Project not found') from exc
 
-        if project_id is not None:
-            try:
-                project = Project.objects.get(id=project_id, organization=org)
-            except Project.DoesNotExist as exc:
-                raise GraphQLError('Project not found') from exc
-            task.project = project
-            update_fields.append('project')
-
-        if title is not None:
-            title_value = title.strip()
-            if not title_value:
-                raise GraphQLError('Task title is required')
-            task.title = title_value
-            update_fields.append('title')
-
-        if description is not None:
-            task.description = description
-            update_fields.append('description')
-
-        if status is not None:
-            if status not in Task.Status.values:
-                raise GraphQLError('Invalid task status')
-            task.status = status
-            update_fields.append('status')
-
-        if assignee_email is not None:
-            task.assignee_email = assignee_email
-            update_fields.append('assignee_email')
-
-        if update_fields:
-            task.save(update_fields=update_fields)
+        except ValidationError as exc:
+            raise GraphQLError(' '.join(exc.messages)) from exc
 
         return UpdateTask(task=task)
 
@@ -150,14 +122,11 @@ class DeleteTask(graphene.Mutation):
 
     @classmethod
     def mutate(cls, root, info, id: str):
-        org, membership = require_org_permission(info, OrganizationMember.Permission.TASKS_DELETE)
-
         try:
-            task = Task.objects.get(id=id, project__organization=org)
+            org, _membership = require_org_permission(info, OrganizationMember.Permission.TASKS_DELETE)
+            task_services.delete_task(organization=org, task_id=id)
         except Task.DoesNotExist as exc:
             raise GraphQLError('Task not found') from exc
-
-        task.delete()
         return DeleteTask(ok=True)
 
 

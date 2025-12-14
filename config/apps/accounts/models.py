@@ -4,7 +4,6 @@ from django.db.models.functions import Lower
 from django.utils import timezone
 
 from apps.core.ids import generate_cuid
-
 from .managers import UserManager
 
 # Create your models here.

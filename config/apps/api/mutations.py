@@ -2,12 +2,12 @@ from django.contrib.auth import authenticate
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
-from django.utils.text import slugify
 from graphql import GraphQLError
 import graphene
 
 from apps.accounts.models import User
 from apps.organizations.models import Organization, OrganizationMember
+from apps.organizations.services import generate_unique_organization_slug
 
 from .jwt import create_access_token
 from .types import OrganizationMemberType, OrganizationType, UserType
@@ -68,7 +68,6 @@ class Login(graphene.Mutation):
 class Onboard(graphene.Mutation):
     class Arguments:
         organization_name = graphene.String(required=True)
-        organization_slug = graphene.String(required=False)
         contact_email = graphene.String(required=False)
 
     organization = graphene.Field(OrganizationType, required=True)
@@ -80,21 +79,22 @@ class Onboard(graphene.Mutation):
         root,
         info,
         organization_name: str,
-        organization_slug: str | None = None,
         contact_email: str | None = None,
     ):
         user = info.context.user
 
-        slug_value = slugify(organization_slug or organization_name)
-        if not slug_value:
-            raise GraphQLError('Invalid organization name/slug')
+        organization_name_value = organization_name.strip()
+        try:
+            slug_value = generate_unique_organization_slug(organization_name=organization_name_value)
+        except ValidationError as exc:
+            raise GraphQLError(' '.join(exc.messages)) from exc
 
         contact_email_value = (contact_email or user.email).strip()
 
         try:
             with transaction.atomic():
                 organization = Organization.objects.create(
-                    name=organization_name.strip(),
+                    name=organization_name_value,
                     slug=slug_value,
                     contact_email=contact_email_value,
                 )
@@ -104,6 +104,6 @@ class Onboard(graphene.Mutation):
                     role=OrganizationMember.Role.OWNER,
                 )
         except IntegrityError as exc:
-            raise GraphQLError('Organization slug already in use') from exc
+            raise GraphQLError('Unable to create organization') from exc
 
         return Onboard(organization=organization, membership=membership)

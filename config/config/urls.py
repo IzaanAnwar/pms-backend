@@ -22,15 +22,15 @@ from graphene_django.views import GraphQLView
 
 from apps.api.graphql_middleware import AuthRequiredMiddleware
 
+graphql_view = csrf_exempt(
+    GraphQLView.as_view(
+        graphiql=settings.DEBUG,
+        middleware=[AuthRequiredMiddleware()],
+    )
+)
+
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path(
-        'graphql/',
-        csrf_exempt(
-            GraphQLView.as_view(
-                graphiql=settings.DEBUG,
-                middleware=[AuthRequiredMiddleware()],
-            )
-        ),
-    ),
+    path('graphql', graphql_view),
+    path('graphql/', graphql_view),
 ]

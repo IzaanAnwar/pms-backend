@@ -4,7 +4,6 @@ from django.db import models
 from django.utils import timezone
 
 from apps.core.ids import generate_cuid
-
 from .managers import OrganizationManager, OrganizationMemberManager
 
 # Create your models here.
