@@ -1,2 +1,5 @@
 Django==6.0
 psycopg[binary]==3.2.3
+graphene-django==3.2.3
+PyJWT==2.9.0
+cuid2==2.0.1
