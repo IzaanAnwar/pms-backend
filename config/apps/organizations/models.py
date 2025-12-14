@@ -3,12 +3,15 @@ from django.core.exceptions import ValidationError
 from django.db import models
 from django.utils import timezone
 
+from apps.core.ids import generate_cuid
+
 from .managers import OrganizationManager, OrganizationMemberManager
 
 # Create your models here.
 
 
 class Organization(models.Model):
+    id = models.CharField(primary_key=True, max_length=24, default=generate_cuid, editable=False)
     name = models.CharField(max_length=200)
     slug = models.SlugField(max_length=200, unique=True)
     contact_email = models.EmailField()
@@ -48,6 +51,7 @@ class Organization(models.Model):
 
 
 class OrganizationMember(models.Model):
+    id = models.CharField(primary_key=True, max_length=24, default=generate_cuid, editable=False)
     class Role(models.TextChoices):
         OWNER = 'owner', 'Owner'
         MANAGER = 'manager', 'Manager'

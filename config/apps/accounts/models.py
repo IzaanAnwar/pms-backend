@@ -3,12 +3,15 @@ from django.db import models
 from django.db.models.functions import Lower
 from django.utils import timezone
 
+from apps.core.ids import generate_cuid
+
 from .managers import UserManager
 
 # Create your models here.
 
 
 class User(AbstractBaseUser, PermissionsMixin):
+    id = models.CharField(primary_key=True, max_length=24, default=generate_cuid, editable=False)
     email = models.EmailField(unique=True)
     first_name = models.CharField(max_length=150, blank=True)
     last_name = models.CharField(max_length=150, blank=True)
