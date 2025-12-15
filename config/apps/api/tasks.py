@@ -34,6 +34,7 @@ class CreateTask(graphene.Mutation):
         title = graphene.String(required=True)
         description = graphene.String(required=False)
         status = graphene.String(required=False)
+        due_date = graphene.Date(required=False)
         assignee_email = graphene.String(required=False)
 
     task = graphene.Field(TaskType, required=True)
@@ -47,6 +48,7 @@ class CreateTask(graphene.Mutation):
         title: str,
         description: str | None = None,
         status: str | None = None,
+        due_date=None,
         assignee_email: str | None = None,
     ):
         try:
@@ -57,6 +59,7 @@ class CreateTask(graphene.Mutation):
                 title=title,
                 description=description,
                 status=status,
+                due_date=due_date,
                 assignee_email=assignee_email,
             )
         except Project.DoesNotExist as exc:
@@ -75,6 +78,7 @@ class UpdateTask(graphene.Mutation):
         title = graphene.String(required=False)
         description = graphene.String(required=False)
         status = graphene.String(required=False)
+        due_date = graphene.Date(required=False)
         assignee_email = graphene.String(required=False)
 
     task = graphene.Field(TaskType, required=True)
@@ -89,6 +93,7 @@ class UpdateTask(graphene.Mutation):
         title: str | None = None,
         description: str | None = None,
         status: str | None = None,
+        due_date=task_services.UNSET,
         assignee_email: str | None = None,
     ):
         try:
@@ -100,6 +105,7 @@ class UpdateTask(graphene.Mutation):
                 title=title,
                 description=description,
                 status=status,
+                due_date=due_date,
                 assignee_email=assignee_email,
             )
         except Task.DoesNotExist as exc:

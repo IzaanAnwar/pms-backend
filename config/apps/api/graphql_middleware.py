@@ -22,7 +22,7 @@ class AuthRequiredMiddleware:
         if user is None or not user.is_authenticated:
             raise GraphQLError('Authentication required')
 
-        if root_field not in {'onboard', 'me'}:
+        if root_field not in {'onboard', 'me', 'account'}:
             if getattr(request, 'org_error', None):
                 raise GraphQLError('Invalid organization')
 

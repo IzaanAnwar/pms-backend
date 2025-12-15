@@ -33,7 +33,7 @@ class ProjectType(DjangoObjectType):
 class TaskType(DjangoObjectType):
     class Meta:
         model = Task
-        fields = ('id', 'project', 'title', 'description', 'status', 'assignee_email', 'created_at', 'updated_at')
+        fields = ('id', 'project', 'title', 'description', 'status', 'due_date', 'assignee_email', 'created_at', 'updated_at')
 
 
 class TaskCommentType(DjangoObjectType):

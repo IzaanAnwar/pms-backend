@@ -6,6 +6,9 @@ from apps.projects.models import Project
 from .models import Task, TaskComment
 
 
+UNSET = object()
+
+
 def create_task(
     *,
     organization: Organization,
@@ -13,6 +16,7 @@ def create_task(
     title: str,
     description: str | None = None,
     status: str | None = None,
+    due_date=None,
     assignee_email: str | None = None,
 ) -> Task:
     title_value = title.strip()
@@ -30,6 +34,7 @@ def create_task(
         title=title_value,
         description=(description or '').strip(),
         status=status_value,
+        due_date=due_date,
         assignee_email=(assignee_email or '').strip(),
     )
 
@@ -42,6 +47,7 @@ def update_task(
     title: str | None = None,
     description: str | None = None,
     status: str | None = None,
+    due_date=UNSET,
     assignee_email: str | None = None,
 ) -> Task:
     task = Task.objects.select_related('project').get(id=task_id, project__organization=organization)
@@ -69,6 +75,10 @@ def update_task(
             raise ValidationError('Invalid task status')
         task.status = status
         update_fields.append('status')
+
+    if due_date is not UNSET:
+        task.due_date = due_date
+        update_fields.append('due_date')
 
     if assignee_email is not None:
         task.assignee_email = assignee_email

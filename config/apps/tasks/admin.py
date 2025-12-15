@@ -18,8 +18,8 @@ class TaskCommentInline(admin.TabularInline):
 
 @admin.register(Task)
 class TaskAdmin(admin.ModelAdmin):
-    list_display = ('title', 'project', 'status', 'assignee_email', 'deleted_at', 'created_at')
-    list_filter = ('status',)
+    list_display = ('title', 'project', 'status', 'due_date', 'assignee_email', 'deleted_at', 'created_at')
+    list_filter = ('status', 'due_date')
     search_fields = (
         'title',
         'description',

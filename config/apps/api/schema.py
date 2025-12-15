@@ -1,13 +1,14 @@
 import graphene
 
 from .mutations import Login, Onboard, Signup
+from .account import AccountQuery
 from .comments import CommentsMutation, CommentsQuery
 from .projects import ProjectsMutation, ProjectsQuery
 from .tasks import TasksMutation, TasksQuery
 from .types import OrganizationType, UserType
 
 
-class Query(ProjectsQuery, TasksQuery, CommentsQuery, graphene.ObjectType):
+class Query(AccountQuery, ProjectsQuery, TasksQuery, CommentsQuery, graphene.ObjectType):
     me = graphene.Field(UserType, required=True)
     active_organization = graphene.Field(OrganizationType)
 
