@@ -1,5 +1,7 @@
 # PMS Backend
 
+# client Repo at https://github.com/IzaanAnwar/pms-cl.git
+
 A lightweight project management backend built with:
 
 - Django + Graphene (GraphQL)
